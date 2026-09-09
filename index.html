@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Что выгоднее — калькулятор переплаты</title>
+<meta name="description" content="Приводит товары разного веса к одинаковому количеству и показывает, сколько вы переплачиваете в рублях.">
+<meta name="theme-color" content="#E9EBE6">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E9EBE6;
+  --surface:#FFFFFF;
+  --ink:#14201C;
+  --muted:#6B7873;
+  --line:#D3D8D1;
+  --tag:#FFD200;
+  --win:#0E6B3C;
+  --warn:#8A3B1E;
+  --radius:14px;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:"Golos Text","Segoe UI",system-ui,-apple-system,Arial,sans-serif;
+  font-size:17px;
+  line-height:1.45;
+  font-feature-settings:"tnum" 1;
+  padding:0 16px calc(24px + env(safe-area-inset-bottom));
+}
+.wrap{max-width:960px;margin:0 auto}
+
+.top{padding:40px 0 26px;max-width:36ch}
+.top h1{margin:0;font-size:clamp(30px,7vw,46px);font-weight:900;letter-spacing:-0.02em;line-height:1.04}
+.top p{margin:12px 0 0;color:var(--muted);font-size:16px}
+
+.items{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;align-items:start}
+.item{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px 16px 14px;position:relative}
+.item.is-best{border-color:var(--ink);box-shadow:0 0 0 2px var(--ink)}
+.tag{position:absolute;top:-11px;left:14px;background:var(--tag);color:var(--ink);font-weight:700;font-size:13px;padding:2px 10px;border-radius:4px;display:none}
+.item.is-best .tag{display:block;animation:pop .18s ease-out}
+@keyframes pop{from{transform:scale(.82)}to{transform:scale(1)}}
+
+.head{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+.name{flex:1;min-width:0;border:0;background:transparent;font:700 18px/1.2 inherit;color:var(--ink);padding:4px 2px;border-bottom:1px solid transparent}
+.name::placeholder{color:var(--muted);font-weight:500}
+.name:focus{outline:none;border-bottom-color:var(--line)}
+.kill{flex:none;width:32px;height:32px;border:1px solid var(--line);background:var(--surface);border-radius:8px;color:var(--muted);font-size:19px;line-height:1;cursor:pointer}
+.kill:hover{color:var(--ink);border-color:var(--ink)}
+
+.field{margin-bottom:10px}
+.field label{display:block;font-size:14px;color:var(--muted);margin-bottom:5px}
+input[type=text],select{font:500 17px/1.2 inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px;width:100%}
+input[type=text]:focus,select:focus{outline:2px solid var(--ink);outline-offset:-2px;border-color:var(--ink)}
+.qty{display:flex;gap:8px}
+.qty input{flex:1 1 auto;min-width:0}
+.qty select{flex:0 0 96px;-webkit-appearance:none;appearance:none;text-align:center;font-weight:700;cursor:pointer}
+
+.verdict{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
+.verdict .row{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.verdict b{font-size:24px;font-weight:900;letter-spacing:-0.01em}
+.verdict .diff{font-size:15px;font-weight:700;color:var(--warn);white-space:nowrap}
+.verdict .diff.same{color:var(--muted);font-weight:500}
+.verdict .sub{display:block;font-size:14px;color:var(--muted);margin-top:2px}
+.item.is-best .verdict b{color:var(--win)}
+
+.bar{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 14px}
+button.act{font:700 16px/1 inherit;padding:13px 18px;border-radius:10px;cursor:pointer;border:1px solid var(--ink)}
+.act.primary{background:var(--ink);color:#fff}
+.act.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.act.ghost:hover{border-color:var(--ink)}
+.act:disabled{opacity:.35;cursor:not-allowed}
+
+.need{background:transparent;border:1px dashed var(--line);border-radius:var(--radius);padding:14px 16px;margin-bottom:14px;display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+.need label{font-size:15px;color:var(--muted);flex:1 1 200px}
+.need .qty{flex:0 0 220px}
+.need .qty input{background:var(--surface)}
+
+.result{background:var(--surface);border:1px solid var(--line);border-top:5px solid var(--tag);border-radius:var(--radius);padding:20px}
+.result .lead{font-size:15px;color:var(--muted);margin:0 0 4px}
+.result .big{margin:0;font-size:clamp(32px,10vw,56px);font-weight:900;letter-spacing:-0.03em;line-height:1.02}
+.result .big small{font-size:.38em;font-weight:700;color:var(--muted);letter-spacing:0}
+.result .save{margin:10px 0 0;font-size:16px;font-weight:500}
+.result .save em{font-style:normal;font-weight:900}
+.result .note{margin:10px 0 0;font-size:14px;color:var(--warn)}
+.result.empty{border-top-color:var(--line)}
+.result.empty .big{font-size:19px;font-weight:500;letter-spacing:0;line-height:1.4;color:var(--muted)}
+
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+
+@media (max-width:760px){
+  body{padding-bottom:0}
+  .top{padding:26px 0 18px}
+  .need .qty{flex:1 1 auto}
+  .result{position:sticky;bottom:0;margin:0 -16px;border-radius:14px 14px 0 0;border-left:0;border-right:0;border-bottom:0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));box-shadow:0 -10px 24px rgba(20,32,28,.13)}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <h1>Что выгоднее</h1>
+    <p>Введите цену и объём упаковок. Калькулятор приведёт их к одинаковому количеству и покажет, сколько вы переплачиваете в рублях.</p>
+  </header>
+
+  <main>
+    <div class="items" id="items"></div>
+
+    <div class="bar">
+      <button class="act primary" id="add" type="button">Добавить товар</button>
+      <button class="act ghost" id="demo" type="button">Показать пример</button>
+      <button class="act ghost" id="clear" type="button">Очистить</button>
+    </div>
+
+    <div class="need">
+      <label for="needAmt">Сколько вам нужно — если знаете, посчитаю итоговую сумму</label>
+      <div class="qty">
+        <input id="needAmt" type="text" inputmode="decimal" autocomplete="off" placeholder="например, 1" aria-label="Нужное количество">
+        <select id="needUnit" aria-label="Единица нужного количества">
+          <option>г</option><option selected>кг</option><option>мл</option><option>л</option><option>шт</option>
+        </select>
+      </div>
+    </div>
+
+    <section class="result empty" id="result" aria-live="polite">
+      <p class="big">Заполните цену и количество хотя бы у двух товаров.</p>
+    </section>
+  </main>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var UNITS = {
+    "г":  { group: "вес",   base: "кг", k: 0.001 },
+    "кг": { group: "вес",   base: "кг", k: 1 },
+    "мл": { group: "объём", base: "л",  k: 0.001 },
+    "л":  { group: "объём", base: "л",  k: 1 },
+    "шт": { group: "штуки", base: "шт", k: 1 }
+  };
+
+  var MAX = 6, MIN = 2, seq = 0;
+  var box = document.getElementById("items");
+  var result = document.getElementById("result");
+  var needAmt = document.getElementById("needAmt");
+  var needUnit = document.getElementById("needUnit");
+
+  function num(v) {
+    var n = parseFloat(String(v).replace(/\s/g, "").replace(",", "."));
+    return isFinite(n) && n > 0 ? n : null;
+  }
+
+  function money(n) {
+    var d = n >= 100 ? 0 : (n >= 10 ? 1 : 2);
+    return n.toLocaleString("ru-RU", { minimumFractionDigits: 0, maximumFractionDigits: d });
+  }
+
+  // 0.2 кг -> "200 г"; 1.5 кг -> "1,5 кг"
+  function qtyLabel(amountInBase, base) {
+    var small = { "кг": "г", "л": "мл" }[base];
+    if (small && amountInBase < 1) {
+      return round(amountInBase * 1000) + " " + small;
+    }
+    return round(amountInBase) + " " + base;
+  }
+
+  function round(n) {
+    return n.toLocaleString("ru-RU", { maximumFractionDigits: 2 });
+  }
+
+  // Цены за единицу считаем равными, если различие — только погрешность вычислений
+  function same(a, b) {
+    return Math.abs(a - b) <= Math.max(a, b) * 1e-9;
+  }
+
+  function pctText(p) {
+    return p.toLocaleString("ru-RU", { maximumFractionDigits: p >= 10 ? 0 : (p >= 1 ? 1 : 2) });
+  }
+
+  function addItem(name, price, amount, unit) {
+    if (box.children.length >= MAX) return;
+    seq++;
+    var el = document.createElement("article");
+    el.className = "item";
+    el.innerHTML =
+      '<span class="tag">Выгоднее</span>' +
+      '<div class="head">' +
+        '<input class="name" type="text" maxlength="40" placeholder="Товар ' + seq + '" aria-label="Название товара">' +
+        '<button class="kill" type="button" title="Убрать товар" aria-label="Убрать товар">&times;</button>' +
+      '</div>' +
+      '<div class="field">' +
+        '<label>Цена упаковки, ₽</label>' +
+        '<input class="price" type="text" inputmode="decimal" autocomplete="off" placeholder="400">' +
+      '</div>' +
+      '<div class="field">' +
+        '<label>Сколько в упаковке</label>' +
+        '<div class="qty">' +
+          '<input class="amount" type="text" inputmode="decimal" autocomplete="off" placeholder="180" aria-label="Количество в упаковке">' +
+          '<select class="unit" aria-label="Единица измерения">' +
+            '<option>г</option><option>кг</option><option>мл</option><option>л</option><option>шт</option>' +
+          '</select>' +
+        '</div>' +
+      '</div>' +
+      '<div class="verdict"><div class="row"><b>—</b><span class="diff"></span></div><span class="sub"></span></div>';
+
+    el.querySelector(".name").value = name || "";
+    el.querySelector(".price").value = price || "";
+    el.querySelector(".amount").value = amount || "";
+    el.querySelector(".unit").value = unit || "г";
+    box.appendChild(el);
+    sync();
+  }
+
+  function read() {
+    return [].map.call(box.children, function (el, i) {
+      var unit = el.querySelector(".unit").value;
+      var u = UNITS[unit];
+      var p = num(el.querySelector(".price").value);
+      var a = num(el.querySelector(".amount").value);
+      return {
+        el: el,
+        name: el.querySelector(".name").value.trim() || "Товар " + (i + 1),
+        group: u.group,
+        base: u.base,
+        unit: unit,
+        price: p,
+        amount: a,
+        packBase: a ? a * u.k : null,
+        per: (p && a) ? p / (a * u.k) : null
+      };
+    });
+  }
+
+  function sync() {
+    var items = read();
+    var filled = items.filter(function (it) { return it.per !== null; });
+
+    // Сравниваем только товары с одинаковым типом единиц
+    var count = {};
+    filled.forEach(function (it) { count[it.group] = (count[it.group] || 0) + 1; });
+    var main = null;
+    filled.forEach(function (it) { if (!main || count[it.group] > count[main]) main = it.group; });
+
+    var pool = filled.filter(function (it) { return it.group === main; });
+    var best = null;
+    pool.forEach(function (it) { if (!best || it.per < best.per) best = it; });
+    var allSame = best && pool.length > 1 && pool.every(function (it) { return same(it.per, best.per); });
+
+    // Эталонное количество: сколько нужно пользователю, иначе — самая большая упаковка
+    var nu = UNITS[needUnit.value], na = num(needAmt.value);
+    var userRef = (na && nu.group === main) ? na * nu.k : null;
+    var ref = userRef;
+    if (!ref) {
+      ref = 0;
+      pool.forEach(function (it) { if (it.packBase > ref) ref = it.packBase; });
+    }
+    var refText = best ? qtyLabel(ref, best.base) : "";
+
+    items.forEach(function (it) {
+      var b = it.el.querySelector(".verdict b");
+      var diff = it.el.querySelector(".diff");
+      var sub = it.el.querySelector(".sub");
+      it.el.classList.remove("is-best");
+      diff.className = "diff";
+      diff.textContent = "";
+
+      if (it.per === null) {
+        b.textContent = "—";
+        sub.textContent = "Заполните цену и количество";
+        return;
+      }
+      if (!best || it.group !== main || !ref) {
+        b.textContent = money(it.per) + " ₽";
+        sub.textContent = "за " + it.base;
+        return;
+      }
+
+      b.textContent = money(it.per * ref) + " ₽";
+      var packText = money(it.price) + " ₽ за " + round(it.amount) + " " + it.unit;
+      if (same(it.packBase, ref)) {
+        sub.innerHTML = "цена упаковки<br>" + money(it.per) + " ₽ за " + it.base;
+      } else {
+        sub.innerHTML = "если пересчитать на " + refText + "<br>упаковка: " + packText +
+                        " · " + money(it.per) + " ₽ за " + it.base;
+      }
+
+      if (allSame) {
+        diff.className = "diff same";
+        diff.textContent = "столько же";
+      } else if (same(it.per, best.per)) {
+        it.el.classList.add("is-best");
+      } else {
+        var over = (it.per - best.per) * ref;
+        var pct = (it.per / best.per - 1) * 100;
+        diff.textContent = "+" + money(over) + " ₽ (" + pctText(pct) + "%)";
+      }
+    });
+
+    if (!best || pool.length < 2 || !ref) {
+      result.className = "result empty";
+      result.innerHTML = '<p class="big">Заполните цену и количество хотя бы у двух товаров.</p>';
+      return;
+    }
+
+    var html;
+
+    if (allSame) {
+      html =
+        '<p class="lead">Одинаковое количество — ' + refText + '</p>' +
+        '<p class="big">' + money(best.per * ref) + ' ₽</p>' +
+        '<p class="save">Цена одинаковая, переплаты нет. Берите любой.</p>';
+    } else {
+      var winners = pool.filter(function (it) { return same(it.per, best.per); });
+      var worst = pool.reduce(function (a, b2) { return a.per > b2.per ? a : b2; });
+      var over = (worst.per - best.per) * ref;
+      var pct = (1 - best.per / worst.per) * 100;
+      var names = winners.map(function (it) { return esc(it.name); }).join(" и ");
+
+      html =
+        '<p class="lead">Если взять одинаковые ' + refText + '</p>' +
+        '<p class="big">' + money(best.per * ref) + ' ₽ <small>вместо ' + money(worst.per * ref) + ' ₽</small></p>' +
+        '<p class="save">Выгоднее ' + names + '. Переплата за ' + esc(worst.name) + ' — <em>' + money(over) +
+          ' ₽</em>, это на ' + pctText(pct) + '% дороже.</p>';
+
+      var w = winners[0];
+      if (!same(w.packBase, ref)) {
+        html += '<p class="lead" style="margin-top:8px">Это пересчёт, а не ценник: ' + esc(w.name) +
+                ' продаётся по ' + money(w.price) + ' ₽ за ' + round(w.amount) + ' ' + w.unit +
+                ', и ровно ' + refText + ' упаковками может не получиться.</p>';
+      }
+    }
+
+    if (!userRef) {
+      html += '<p class="lead" style="margin-top:8px">Сравниваю по самой большой упаковке. Укажите нужное количество выше, чтобы посчитать по нему.</p>';
+    }
+
+    var others = filled.length - pool.length;
+    if (others > 0) {
+      html += '<p class="note">Товары в других единицах (' + others + ') в сравнение не вошли: сравнивать можно только вес с весом, объём с объёмом.</p>';
+    }
+
+    result.className = "result";
+    result.innerHTML = html;
+  }
+
+  function esc(s) {
+    return s.replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
+
+  box.addEventListener("input", sync);
+  box.addEventListener("change", sync);
+  needAmt.addEventListener("input", sync);
+  needUnit.addEventListener("change", sync);
+
+  box.addEventListener("click", function (e) {
+    var kill = e.target.closest(".kill");
+    if (!kill) return;
+    if (box.children.length <= MIN) return;
+    kill.closest(".item").remove();
+    document.getElementById("add").disabled = false;
+    sync();
+  });
+
+  document.getElementById("add").addEventListener("click", function () {
+    addItem();
+    document.getElementById("add").disabled = box.children.length >= MAX;
+    var last = box.lastElementChild;
+    if (last) last.querySelector(".price").focus();
+  });
+
+  document.getElementById("clear").addEventListener("click", function () {
+    box.innerHTML = ""; seq = 0;
+    needAmt.value = "";
+    addItem(); addItem();
+    document.getElementById("add").disabled = false;
+  });
+
+  document.getElementById("demo").addEventListener("click", function () {
+    box.innerHTML = ""; seq = 0;
+    needAmt.value = "";
+    addItem("Пачка 180 г", "400", "180", "г");
+    addItem("Пачка 200 г", "500", "200", "г");
+    document.getElementById("add").disabled = false;
+  });
+
+  addItem();
+  addItem();
+})();
+</script>
+</body>
+</html>
